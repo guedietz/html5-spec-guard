@@ -318,6 +318,7 @@ Please open an issue to discuss before submitting large changes.
 
 **Günther Dietz**
 Head of Business Development & Programmatic @ otago Online Consulting 🇦🇹
+(Vibe coded with Claude Code)
 
 Building transparency & automation tools for the open web.
 
