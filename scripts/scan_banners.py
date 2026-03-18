@@ -199,10 +199,10 @@ def _check_animation_duration(check_id, css_text, primary_html, js_text, thresho
     if max_dur > threshold_s or long_timers:
         parts = []
         if max_dur > threshold_s:
-            parts.append(f"CSS anim {max_dur}s > {threshold_s}s")
+            parts.append(f"CSS animation-duration: {max_dur}s exceeds {threshold_s}s limit (advisory — check if this applies to the main animation flow)")
         if long_timers:
-            parts.append(f"Timer > {threshold_s}s: {long_timers[0]}ms")
-        suggestion = f"Limit animation to {threshold_s}s, then static." if threshold_s <= 15 else f"Limit animation to {threshold_s}s."
+            parts.append(f"JS timer > {threshold_s}s: {long_timers[0]}ms")
+        suggestion = f"Limit animation to {threshold_s}s, then freeze to static." if threshold_s <= 15 else f"Limit animation to {threshold_s}s."
         return CheckResult(id=check_id, status="WARNING", message="; ".join(parts), suggestion=suggestion)
     return CheckResult(id=check_id, status="PASS", message="No animation duration issues")
 
@@ -225,8 +225,8 @@ def _check_infinite_loop(check_id, css_text, primary_html, max_iterations=None):
                            message=f"Animation loops within limit (max {max_iterations})")
 
     return CheckResult(id=check_id, status="WARNING" if inf_loop else "PASS",
-                       message="Infinite animation loop in CSS" if inf_loop else "No infinite loops",
-                       suggestion="Remove infinite loop." if inf_loop else None)
+                       message="CSS animation-iteration-count: infinite (advisory — check if intentional or in a conditional class)" if inf_loop else "No infinite loops",
+                       suggestion="Remove or limit infinite animation loops." if inf_loop else None)
 
 
 def _check_audio_autoplay(check_id, all_text):
@@ -310,6 +310,12 @@ def scan_zip(zip_path, platforms, allowed_domains=None):
         if all_htmls:
             primary_html_name = all_htmls[0]
     primary_html = text_contents.get(primary_html_name, "") if primary_html_name else ""
+
+    # Detect single-folder wrapper (common macOS Archive Utility pattern)
+    non_junk_filenames = [f for f in filenames if not f.startswith("__MACOSX")]
+    _root_prefixes = set(f.split("/")[0] for f in non_junk_filenames if "/" in f)
+    _all_in_subfolder = bool(_root_prefixes) and all("/" in f for f in non_junk_filenames)
+    _single_wrapper_folder = _root_prefixes.pop() if _all_in_subfolder and len(_root_prefixes) == 1 else None
 
     # Initial load estimate
     initial_bytes, initial_files = estimate_initial_load(primary_html, infos)
@@ -456,9 +462,24 @@ def scan_zip(zip_path, platforms, allowed_domains=None):
                            suggestion= None if has_index else "Add index.html to the ZIP root."))
         elif platform != "ADFORM":
             hid = {"CM360": "CM360-PKG-04", "DV360": "DV360-PKG-05", "TTD": "TTD-PKG-05"}[platform]
-            checks.append(CheckResult(id= hid, status= "PASS" if root_htmls else "FAIL",
-                           message= f"Primary HTML: {primary_html_name}" if root_htmls else "No .html/.htm at root",
-                           suggestion= None if root_htmls else "Place HTML file at archive root."))
+            if root_htmls:
+                _pkg_status = "PASS"
+                _pkg_msg = f"Primary HTML: {primary_html_name}"
+                _pkg_sug = None
+            elif _single_wrapper_folder and primary_html_name:
+                _pkg_status = "WARNING"
+                _pkg_msg = (f"HTML inside wrapper folder '{_single_wrapper_folder}/' "
+                            f"(macOS Archive Utility pattern) — spec requires HTML at ZIP root")
+                _pkg_sug = f"Re-zip from inside the folder: cd '{_single_wrapper_folder}' && zip -r ../banner.zip *"
+            elif primary_html_name:
+                _pkg_status = "FAIL"
+                _pkg_msg = f"HTML not at ZIP root (found: {primary_html_name})"
+                _pkg_sug = "Place the HTML file directly at the archive root."
+            else:
+                _pkg_status = "FAIL"
+                _pkg_msg = "No .html/.htm found in archive"
+                _pkg_sug = "Place HTML file at archive root."
+            checks.append(CheckResult(id=hid, status=_pkg_status, message=_pkg_msg, suggestion=_pkg_sug))
 
         # ── FILE-01: Allowed File Types ──
         dis = [f"{os.path.splitext(f)[1].lower()} ({f})" for f in filenames
@@ -507,12 +528,21 @@ def scan_zip(zip_path, platforms, allowed_domains=None):
         # ── GEN-PKG-07: Junk Files ──
         junk_msg = "No junk files"
         if junk_files:
-            junk_msg = f"Junk file(s) ({len(junk_files)}): {', '.join(junk_files[:3])}"
-            if len(junk_files) > 3:
-                junk_msg += f" (+{len(junk_files) - 3} more)"
+            mac_junk = [f for f in junk_files if f.startswith("__MACOSX") or os.path.basename(f).startswith("._") or os.path.basename(f).lower() == ".ds_store"]
+            other_junk = [f for f in junk_files if f not in mac_junk]
+            parts = []
+            if mac_junk:
+                parts.append(f"macOS metadata ({len(mac_junk)} file(s): __MACOSX/, ._*, .DS_Store)")
+            if other_junk:
+                parts.append(f"other junk ({len(other_junk)}): {', '.join(other_junk[:2])}")
+            junk_msg = "; ".join(parts)
+            junk_sug = ("macOS Archive Utility adds these automatically. Re-zip from inside the banner folder: "
+                        "cd 'banner-folder' && zip -r ../banner.zip *")
+        else:
+            junk_sug = None
         checks.append(CheckResult(id= "GEN-PKG-07", status= "PASS" if not junk_files else "WARNING",
                        message= junk_msg,
-                       suggestion= None if not junk_files else "Remove .DS_Store, Thumbs.db, __MACOSX, .git files before packaging."))
+                       suggestion= junk_sug))
 
         # ── HTML-01: Ad Size ──
         if platform == "ADFORM" and isinstance(manifest_data, dict):
@@ -660,8 +690,8 @@ def scan_zip(zip_path, platforms, allowed_domains=None):
             if ct_found and not hc:
                 checks.append(CheckResult(id= f"{cp}-02", status= "PASS", message= "clickTag not hardcoded", suggestion= None))
             elif hc:
-                checks.append(CheckResult(id= f"{cp}-02", status= "FAIL", message= "clickTag hardcoded to a URL",
-                               suggestion= "Use URL parameters or empty string."))
+                checks.append(CheckResult(id= f"{cp}-02", status= "WARNING", message= "clickTag hardcoded to a URL",
+                               suggestion= "Use an empty string or URL parameter — the ad server will inject the click URL at serve time."))
             else:
                 checks.append(CheckResult(id= f"{cp}-02", status= "INFO", message= "clickTag N/A", suggestion= None))
             meta["clicktag_vars"] = ct_vars
@@ -705,16 +735,30 @@ def scan_zip(zip_path, platforms, allowed_domains=None):
         # ── Security ──
         # Exclude HTTP URLs that appear only in comment/license blocks (not actual resource loads)
         _comment_url_domains = {"polymer.github.io", "creativecommons.org", "opensource.org", "www.apache.org", "www.mozilla.org"}
-        http_urls_raw = re.findall(r"http://(?!www\.w3\.org)\S+", all_text)
-        http_urls = []
+        http_urls_raw = re.findall(r"http://(?!www\.w3\.org)[^\s\"'<>(),;\\]+", all_text)
+        http_urls_untrusted = []
+        http_urls_trusted = []
         for url in http_urls_raw:
             domain_m = re.match(r"http://([^/:\s]+)", url)
-            if domain_m and domain_m.group(1).lower() in _comment_url_domains:
+            domain = domain_m.group(1).lower() if domain_m else ""
+            if domain in _comment_url_domains:
                 continue  # Skip known license/comment-only domains
-            http_urls.append(url)
-        checks.append(CheckResult(id= f"{platform}-SEC-01", status= "PASS" if not http_urls else "FAIL",
-                       message= "All URLs use HTTPS" if not http_urls else f"HTTP URL(s) ({len(http_urls)}): {http_urls[0][:60]}",
-                       suggestion= None if not http_urls else "Change all http:// to https://."))
+            is_allowed = any(domain == d or domain.endswith("." + d) for d in ALLOWED_DOMAINS)
+            if is_allowed:
+                http_urls_trusted.append(url)
+            else:
+                http_urls_untrusted.append(url)
+        if http_urls_untrusted:
+            _sec01_status = "FAIL"
+            _sec01_msg = f"HTTP URL(s) to untrusted domain ({len(http_urls_untrusted)}): {http_urls_untrusted[0][:60]}"
+            _sec01_sug = "Change all http:// to https://."
+        elif http_urls_trusted:
+            _sec01_status = "WARNING"
+            _sec01_msg = f"HTTP URL(s) to trusted domain ({len(http_urls_trusted)}): {http_urls_trusted[0][:60]} — upgrade to https://"
+            _sec01_sug = "Change http:// to https:// even for known domains."
+        else:
+            _sec01_status, _sec01_msg, _sec01_sug = "PASS", "All URLs use HTTPS", None
+        checks.append(CheckResult(id= f"{platform}-SEC-01", status= _sec01_status, message= _sec01_msg, suggestion= _sec01_sug))
 
         storage = [s for s in ["localStorage", "sessionStorage"] if s in all_text]
         checks.append(CheckResult(id= f"{platform}-SEC-02", status= "PASS" if not storage else "FAIL",
