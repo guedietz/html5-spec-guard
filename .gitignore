@@ -1,0 +1,23 @@
+# --- HTML5 Spec Guard Workspaces ---
+scan/
+output/
+archive/
+
+# --- Python Environment ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# --- OS Junk ---
+.DS_Store
+Thumbs.db
+__MACOSX/
+
+# --- Local Logs ---
+*.log
+
+# --- Reports ---
+*.pdf
