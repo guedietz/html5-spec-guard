@@ -112,7 +112,8 @@ Reference for automated compliance checks. Each check has a unique ID for tracea
 ### ADFORM-SEC-01: HTTPS Only
 - **Rule:** All URLs referenced in HTML, JS, and CSS files must use `https://` protocol
 - **Detection:** Search for `http://` URLs (excluding `http://www.w3.org` namespace references)
-- **Severity:** FAIL
+- **Severity:** FAIL (HTTP URL to an untrusted domain) /
+  WARNING (HTTP URL to a known-trusted domain — still should be upgraded to HTTPS)
 
 ### ADFORM-SEC-02: No Local Storage
 - **Rule:** Code must not use `localStorage` or `sessionStorage`

@@ -24,7 +24,8 @@ Reference for automated compliance checks. Each check has a unique ID for tracea
 
 ### TTD-PKG-05: Primary HTML File
 - **Rule:** Archive must contain at least one `.html` or `.htm` file at the root level
-- **Severity:** FAIL
+- **Severity:** FAIL (no HTML found, or HTML in deep nested path) /
+  WARNING (HTML inside a single wrapper folder — macOS Archive Utility pattern)
 
 ---
 
@@ -83,7 +84,7 @@ Reference for automated compliance checks. Each check has a unique ID for tracea
   - Assignment from `getParameterByName("clickTAG")`
   - Assignment from URL parameters
   - Placeholder values like `""` or `''`
-- **Severity:** FAIL
+- **Severity:** FAIL (clickTAG hardcoded to a URL) / INFO (clickTAG not found — N/A)
 
 ---
 
@@ -92,7 +93,8 @@ Reference for automated compliance checks. Each check has a unique ID for tracea
 ### TTD-SEC-01: HTTPS Only
 - **Rule:** All URLs referenced in HTML, JS, and CSS files must use `https://` protocol (SSL compliant)
 - **Detection:** Search for `http://` URLs (excluding `http://www.w3.org` namespace references)
-- **Severity:** FAIL
+- **Severity:** FAIL (HTTP URL to an untrusted domain) /
+  WARNING (HTTP URL to a known-trusted domain — still should be upgraded to HTTPS)
 
 ### TTD-SEC-02: No Local Storage
 - **Rule:** Code must not use `localStorage` or `sessionStorage`
