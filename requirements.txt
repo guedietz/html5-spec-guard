@@ -1,0 +1,9 @@
+# HTML5 Spec Guard — optional dependencies
+# Core scanner uses Python standard library only.
+
+# PDF report generation
+fpdf2>=2.7.0
+
+# Runtime CPU/memory checks (headless Chromium)
+# After install, run: playwright install chromium
+playwright>=1.40.0
