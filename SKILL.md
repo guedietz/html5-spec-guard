@@ -62,8 +62,8 @@ Ask the user which platform spec to check against. Present as a numbered list:
 3. **TTD** — The Trade Desk
 4. **Adform** — Adform DSP/Ad Server
 5. **Amazon DSP** — Amazon Demand-Side Platform
-6. **Both** — CM360 + DV360
-7. **All** — CM360 + DV360 + TTD + Adform + Amazon DSP
+6. **All** — CM360 + DV360 + TTD + Adform + Amazon DSP
+7. **Individual** - Just name the platforms you need :-)
 
 If only one platform is relevant based on conversation context, you may skip this prompt.
 
