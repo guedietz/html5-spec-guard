@@ -305,7 +305,7 @@ Install optional dependencies: `pip install -r requirements.txt && playwright in
 
 Contributions are welcome! Areas where help is appreciated:
 
-- Additional platform specs (Xandr, Google Ads, Meta, etc.)
+- Additional platform specs
 - Improved animation duration detection heuristics
 - Rich media framework support beyond Enabler.js
 - Better minification-aware click tracking detection
