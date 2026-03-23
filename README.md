@@ -19,7 +19,7 @@ HTML5 Spec Guard scans HTML5 banner ZIP files against the official ad specificat
 ### A) Standalone CLI (no Claude Code needed)
 
 ```bash
-git clone https://github.com/your-org/html5-spec-guard.git
+git clone https://github.com/guedietz/html5-spec-guard.git
 cd html5-spec-guard
 
 # Install optional dependencies
@@ -27,7 +27,8 @@ pip install -r requirements.txt
 playwright install chromium
 
 # Create directories
-mkdir scan output
+mkdir scan
+mkdir output
 
 # Drop your banner ZIPs into scan/
 # Then run:
